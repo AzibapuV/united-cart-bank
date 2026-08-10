@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  role          Role      @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  verificationCode          String?
+  verificationCodeExpiresAt DateTime?
+
+  resetToken          String?   @unique
+  resetTokenExpiresAt DateTime?
+
+  accounts      Account[]
+  beneficiaries Beneficiary[]
+  loans         Loan[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+model Account {
+  id            String        @id @default(cuid())
+  userId        String
+  type          AccountType
+  nickname      String?
+  accountNumber String        @unique
+  routingNumber String
+  balance       Float         @default(0)
+  status        AccountStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  cards        Card[]
+
+  @@map("accounts")
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER_IN
+  TRANSFER_OUT
+  PAYMENT
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  accountId   String
+  type        TransactionType
+  amount      Float
+  description String
+  balanceAfter Float
+  createdAt   DateTime        @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+enum CardStatus {
+  ACTIVE
+  FROZEN
+  CANCELLED
+}
+
+model Card {
+  id                      String     @id @default(cuid())
+  accountId               String
+  last4                   String
+  status                  CardStatus @default(ACTIVE)
+  spendingLimit           Float      @default(2000)
+  internationalEnabled    Boolean    @default(false)
+  contactlessEnabled      Boolean    @default(true)
+  createdAt               DateTime   @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("cards")
+}
+
+model Beneficiary {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  accountNumber String
+  routingNumber String
+  nickname      String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("beneficiaries")
+}
+
+enum LoanType {
+  PERSONAL
+  BUSINESS
+  AUTO
+  MORTGAGE
+  STUDENT
+  HOME_IMPROVEMENT
+  DEBT_CONSOLIDATION
+}
+
+enum LoanStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  CONDITIONALLY_APPROVED
+  REJECTED
+  DISBURSED
+  ACTIVE
+  PAID_OFF
+  CLOSED
+}
+
+model Loan {
+  id           String     @id @default(cuid())
+  userId       String
+  type         LoanType
+  amount       Float
+  purpose      String?
+  termMonths   Int
+  interestRate Float      @default(7.5)
+  status       LoanStatus @default(DRAFT)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("loans")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
